@@ -4,7 +4,7 @@ from pathlib import Path
 
 import click
 
-from .config import BATCH_STATUS, SAMPLE_DATA_DIR
+from .config import BATCH_STATUS, SAMPLE_DATA_DIR, CONFLICT_STRATEGIES, CONFLICT_TYPES
 from .database import init_db, get_db
 from .validators import ValidationError
 from .data_import import DataImportService
@@ -12,6 +12,7 @@ from .batch_manager import BatchManager
 from .anomaly_detector import AnomalyDetector
 from .correction_engine import RuleEngine
 from .report_exporter import ReportExporter
+from .scheme_manager import SchemeManager
 from .output_utils import init_output, safe_echo
 
 init_output()
@@ -41,10 +42,23 @@ def init(reset_db):
 @click.option("-n", "--name", "batch_name", help="批次名称")
 @click.option("-d", "--description", help="批次描述")
 @click.option("-u", "--user", "imported_by", help="导入人")
-def import_file(file_path, batch_name, description, imported_by):
+@click.option("--scheme", "scheme_id", type=int, help="使用的导入方案ID")
+@click.option("--scheme-name", "scheme_name", help="使用的导入方案名称")
+def import_file(file_path, batch_name, description, imported_by, scheme_id, scheme_name):
     """导入CSV/Excel数据文件"""
     try:
-        service = DataImportService()
+        actual_scheme_id = scheme_id
+        if scheme_name and not scheme_id:
+            sm = SchemeManager()
+            scheme = sm.get_scheme_by_name(scheme_name)
+            if scheme:
+                actual_scheme_id = scheme.id
+            else:
+                safe_echo(f"❌ 方案不存在: {scheme_name}", err=True)
+                sys.exit(1)
+            sm.close()
+
+        service = DataImportService(scheme_id=actual_scheme_id)
         batch, rows = service.import_file(
             file_path=file_path,
             batch_name=batch_name,
@@ -57,6 +71,9 @@ def import_file(file_path, batch_name, description, imported_by):
         safe_echo(f"   有效行数: {batch.valid_rows}")
         safe_echo(f"   无效行数: {batch.invalid_rows}")
         safe_echo(f"   状态: {batch.status}")
+        if actual_scheme_id:
+            safe_echo(f"   使用方案: ID={actual_scheme_id}")
+        service.close()
     except ValidationError as e:
         safe_echo(f"❌ 导入失败: {e}", err=True)
         if e.details:
@@ -449,6 +466,275 @@ def generate_samples():
             safe_echo(f"   {f}")
     except Exception as e:
         safe_echo(f"❌ 生成失败: {e}", err=True)
+        sys.exit(1)
+
+
+@cli.group()
+def scheme():
+    """导入方案管理"""
+    pass
+
+
+@scheme.command("create")
+@click.option("--name", required=True, help="方案名称")
+@click.option("--description", help="方案描述")
+@click.option("--field-mapping", "field_mappings", multiple=True, nargs=2, help="字段映射，格式: 源字段 目标字段")
+@click.option("--default-timezone", default="Asia/Shanghai", help="默认时区")
+@click.option("--device-config", "device_config_path", type=click.Path(exists=True), help="设备配置文件路径")
+@click.option("--conflict-batch-name", type=click.Choice(["reject", "isolate", "overwrite"]), default="reject", help="同批次重名处理策略")
+@click.option("--conflict-reading", type=click.Choice(["reject", "isolate", "overwrite"]), default="reject", help="重复读数处理策略")
+@click.option("--conflict-missing-device", type=click.Choice(["reject", "isolate", "overwrite"]), default="reject", help="缺失设备处理策略")
+@click.option("-u", "--user", "created_by", help="创建人")
+def create_scheme(name, description, field_mappings, default_timezone, device_config_path,
+                  conflict_batch_name, conflict_reading, conflict_missing_device, created_by):
+    """创建导入方案"""
+    try:
+        fm = {}
+        for source, target in field_mappings:
+            fm[source] = target
+        if not fm:
+            from .config import REQUIRED_FIELDS, OPTIONAL_FIELDS
+            for f in REQUIRED_FIELDS + OPTIONAL_FIELDS:
+                fm[f] = f
+
+        strategies = {
+            CONFLICT_TYPES["DUPLICATE_BATCH_NAME"]: conflict_batch_name,
+            CONFLICT_TYPES["DUPLICATE_READING"]: conflict_reading,
+            CONFLICT_TYPES["MISSING_DEVICE"]: conflict_missing_device,
+        }
+
+        manager = SchemeManager()
+        scheme = manager.create_scheme(
+            name=name,
+            field_mappings=fm,
+            default_timezone=default_timezone,
+            device_config_path=device_config_path,
+            conflict_strategies=strategies,
+            description=description,
+            created_by=created_by,
+        )
+        scheme_id = scheme.id
+        scheme_name = scheme.name
+        scheme_description = scheme.description
+        manager.close()
+        safe_echo(f"✅ 方案创建成功！ID: {scheme_id}")
+        safe_echo(f"   名称: {scheme_name}")
+        if scheme_description:
+            safe_echo(f"   描述: {scheme_description}")
+    except ValueError as e:
+        safe_echo(f"❌ {e}", err=True)
+        sys.exit(1)
+    except Exception as e:
+        safe_echo(f"❌ 创建失败: {e}", err=True)
+        sys.exit(1)
+
+
+@scheme.command("list")
+@click.option("--all", "show_all", is_flag=True, help="显示所有方案（包括已停用的）")
+def list_schemes(show_all):
+    """列出所有导入方案"""
+    try:
+        manager = SchemeManager()
+        schemes = manager.list_schemes(active_only=not show_all)
+        manager.close()
+
+        if not schemes:
+            safe_echo("暂无导入方案")
+            return
+
+        safe_echo(f"{'ID':<5} {'名称':<25} {'时区':<15} {'状态':<8} {'创建时间':<20}")
+        safe_echo("-" * 75)
+        for s in schemes:
+            status = "激活" if s.is_active else "停用"
+            safe_echo(f"{s.id:<5} {s.name[:23]:<25} {s.default_timezone:<15} {status:<8} {s.created_at.strftime('%Y-%m-%d %H:%M'):<20}")
+    except Exception as e:
+        safe_echo(f"❌ 查询失败: {e}", err=True)
+        sys.exit(1)
+
+
+@scheme.command("show")
+@click.argument("scheme_id", type=int)
+def show_scheme(scheme_id):
+    """显示方案详情"""
+    try:
+        manager = SchemeManager()
+        scheme = manager.get_scheme(scheme_id)
+        if not scheme:
+            safe_echo(f"❌ 方案不存在: {scheme_id}", err=True)
+            sys.exit(1)
+
+        config = manager.get_scheme_config(scheme)
+        manager.close()
+
+        safe_echo(f"\n📋 导入方案 #{scheme.id}")
+        safe_echo("=" * 50)
+        safe_echo(f"名称: {scheme.name}")
+        if scheme.description:
+            safe_echo(f"描述: {scheme.description}")
+        safe_echo(f"默认时区: {scheme.default_timezone}")
+        if scheme.device_config_path:
+            safe_echo(f"设备配置: {scheme.device_config_path}")
+        safe_echo(f"状态: {'激活' if scheme.is_active else '停用'}")
+        safe_echo(f"创建时间: {scheme.created_at}")
+        if scheme.created_by:
+            safe_echo(f"创建人: {scheme.created_by}")
+
+        safe_echo(f"\n🔗 字段映射:")
+        for source, target in config["field_mappings"].items():
+            if source == target:
+                safe_echo(f"  {source} → {target}")
+            else:
+                safe_echo(f"  {source} → {target} (重命名)")
+
+        safe_echo(f"\n⚔️  冲突处理策略:")
+        for conflict_type, strategy in config["conflict_strategies"].items():
+            strategy_display = {
+                "reject": "拒绝",
+                "isolate": "隔离",
+                "overwrite": "覆盖",
+            }.get(strategy, strategy)
+            type_display = {
+                "duplicate_batch_name": "同批次重名",
+                "duplicate_reading": "重复读数",
+                "missing_device": "缺失设备",
+            }.get(conflict_type, conflict_type)
+            safe_echo(f"  {type_display}: {strategy_display}")
+    except Exception as e:
+        safe_echo(f"❌ 查询失败: {e}", err=True)
+        sys.exit(1)
+
+
+@scheme.command("export")
+@click.argument("scheme_id", type=int)
+@click.option("-o", "--output", type=click.Path(), help="输出文件路径")
+def export_scheme(scheme_id, output):
+    """导出方案为JSON"""
+    try:
+        manager = SchemeManager()
+        file_path = manager.export_scheme_to_json(scheme_id, output_path=output)
+        manager.close()
+        safe_echo(f"✅ 方案导出成功！")
+        safe_echo(f"   文件: {file_path}")
+    except ValueError as e:
+        safe_echo(f"❌ {e}", err=True)
+        sys.exit(1)
+    except Exception as e:
+        safe_echo(f"❌ 导出失败: {e}", err=True)
+        sys.exit(1)
+
+
+@scheme.command("import")
+@click.argument("file_path", type=click.Path(exists=True))
+@click.option("-u", "--user", "created_by", help="导入人")
+def import_scheme(file_path, created_by):
+    """从JSON导入方案"""
+    try:
+        manager = SchemeManager()
+        scheme = manager.import_scheme_from_json(file_path, created_by=created_by)
+        scheme_id = scheme.id
+        scheme_name = scheme.name
+        manager.close()
+        safe_echo(f"✅ 方案导入成功！ID: {scheme_id}")
+        safe_echo(f"   名称: {scheme_name}")
+    except ValueError as e:
+        safe_echo(f"❌ {e}", err=True)
+        sys.exit(1)
+    except Exception as e:
+        safe_echo(f"❌ 导入失败: {e}", err=True)
+        sys.exit(1)
+
+
+@scheme.command("delete")
+@click.argument("scheme_id", type=int)
+def delete_scheme(scheme_id):
+    """删除导入方案"""
+    try:
+        manager = SchemeManager()
+        success = manager.delete_scheme(scheme_id)
+        manager.close()
+        if success:
+            safe_echo(f"✅ 方案已删除: {scheme_id}")
+        else:
+            safe_echo(f"❌ 方案不存在: {scheme_id}", err=True)
+            sys.exit(1)
+    except Exception as e:
+        safe_echo(f"❌ 删除失败: {e}", err=True)
+        sys.exit(1)
+
+
+@cli.group()
+def audit():
+    """审计日志管理"""
+    pass
+
+
+@audit.command("logs")
+@click.option("--batch-id", type=int, help="按批次ID过滤")
+@click.option("--scheme-id", type=int, help="按方案ID过滤")
+@click.option("-l", "--limit", type=int, default=50, help="显示数量")
+def audit_logs(batch_id, scheme_id, limit):
+    """查看导入审计日志"""
+    try:
+        manager = SchemeManager()
+        logs = manager.get_audit_logs(batch_id=batch_id, scheme_id=scheme_id, limit=limit)
+        manager.close()
+
+        if not logs:
+            safe_echo("暂无审计日志")
+            return
+
+        safe_echo(f"{'ID':<6} {'动作':<18} {'批次':<8} {'冲突类型':<16} {'策略':<10} {'时间':<20}")
+        safe_echo("-" * 80)
+        for log in logs:
+            action_display = {
+                "batch_created": "批次创建",
+                "batch_overwritten": "批次覆盖",
+                "conflict_detected": "冲突检测",
+                "import_completed": "导入完成",
+            }.get(log.action, log.action)
+            conflict_display = {
+                "duplicate_batch_name": "重名",
+                "duplicate_reading": "重复读数",
+                "missing_device": "缺失设备",
+            }.get(log.conflict_type, log.conflict_type or "-")
+            strategy_display = {
+                "reject": "拒绝",
+                "isolate": "隔离",
+                "overwrite": "覆盖",
+            }.get(log.conflict_strategy, log.conflict_strategy or "-")
+            batch_str = str(log.batch_id) if log.batch_id else "-"
+            safe_echo(f"{log.id:<6} {action_display:<18} {batch_str:<8} {conflict_display:<16} {strategy_display:<10} {log.created_at.strftime('%Y-%m-%d %H:%M'):<20}")
+    except Exception as e:
+        safe_echo(f"❌ 查询失败: {e}", err=True)
+        sys.exit(1)
+
+
+@audit.command("isolated")
+@click.option("--batch-id", type=int, help="按批次ID过滤")
+@click.option("--pending", is_flag=True, help="只显示待处理的")
+def audit_isolated(batch_id, pending):
+    """查看隔离记录"""
+    try:
+        manager = SchemeManager()
+        resolution = "pending" if pending else None
+        records = manager.get_isolated_records(batch_id=batch_id, resolution=resolution)
+        manager.close()
+
+        if not records:
+            safe_echo("暂无隔离记录")
+            return
+
+        safe_echo(f"{'ID':<6} {'批次':<8} {'行号':<8} {'冲突类型':<16} {'状态':<10} {'时间':<20}")
+        safe_echo("-" * 70)
+        for r in records:
+            type_display = {
+                "duplicate_batch_name": "重名",
+                "duplicate_reading": "重复读数",
+                "missing_device": "缺失设备",
+            }.get(r.conflict_type, r.conflict_type)
+            safe_echo(f"{r.id:<6} {r.batch_id:<8} {r.row_number:<8} {type_display:<16} {r.resolution:<10} {r.created_at.strftime('%Y-%m-%d %H:%M'):<20}")
+    except Exception as e:
+        safe_echo(f"❌ 查询失败: {e}", err=True)
         sys.exit(1)
 
 

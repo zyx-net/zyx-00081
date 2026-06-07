@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>用电数据分析报告 - CLI完整测试</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif; background: #f5f7fa; color: #333; line-height: 1.6; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; border-radius: 10px; margin-bottom: 20px; }
+        .header h1 { font-size: 28px; margin-bottom: 10px; }
+        .header .meta { opacity: 0.9; font-size: 14px; }
+        .card { background: white; border-radius: 10px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+        .card h2 { color: #333; font-size: 20px; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 2px solid #eee; }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px; }
+        .stat-card { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; padding: 20px; border-radius: 8px; }
+        .stat-card.blue { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
+        .stat-card.green { background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); }
+        .stat-card.orange { background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); }
+        .stat-card .value { font-size: 36px; font-weight: bold; }
+        .stat-card .label { font-size: 14px; opacity: 0.95; }
+        .anomaly-badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 500; }
+        .severity-error { background: #fee; color: #c33; }
+        .severity-warning { background: #fff3cd; color: #856404; }
+        .severity-info { background: #d1ecf1; color: #0c5460; }
+        .status-open { background: #f8d7da; color: #721c24; }
+        .status-resolved { background: #d4edda; color: #155724; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px 0; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #eee; }
+        th { background: #f8f9fa; font-weight: 600; color: #555; }
+        tr:hover { background: #f8f9fa; }
+        .anomaly-item { padding: 15px; border-left: 4px solid #e74c3c; margin-bottom: 10px; background: #fff5f5; border-radius: 0 8px 8px 0; }
+        .anomaly-item.warning { border-left-color: #f39c12; background: #fffbf0; }
+        .anomaly-item .anomaly-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+        .anomaly-item .anomaly-code { font-weight: 600; color: #333; }
+        .anomaly-item .anomaly-desc { color: #666; font-size: 14px; }
+        .anomaly-item .anomaly-details { margin-top: 8px; padding: 10px; background: rgba(0,0,0,0.02); border-radius: 6px; font-size: 13px; color: #555; }
+        .correction-item { padding: 12px; background: #e8f5e9; border-radius: 8px; margin-bottom: 10px; }
+        .correction-item .value-change { font-family: monospace; font-size: 14px; }
+        .footer { text-align: center; color: #888; font-size: 12px; margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; }
+        .store-table { overflow-x: auto; }
+        code { background: #f4f4f4; padding: 2px 6px; border-radius: 4px; font-size: 13px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>⚡ 用电数据分析报告</h1>
+            <div class="meta">
+                <strong>批次:</strong> CLI完整测试
+                <br>
+                <strong>文件:</strong> with_anomalies.csv |
+                <strong>导入时间:</strong> 2026-06-07 21:47:33 |
+                <strong>导出时间:</strong> 2026-06-07 21:47:37
+            </div>
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat-card blue">
+                <div class="value">14</div>
+                <div class="label">有效读数记录</div>
+            </div>
+            <div class="stat-card">
+                <div class="value">2</div>
+                <div class="label">异常总数</div>
+            </div>
+            <div class="stat-card orange">
+                <div class="value">0</div>
+                <div class="label">修正记录</div>
+            </div>
+            <div class="stat-card green">
+                <div class="value">2</div>
+                <div class="label">涉及门店</div>
+            </div>
+        </div>
+
+        
+        <div class="card">
+            <h2>📊 异常类型汇总</h2>
+            <div class="stats-grid">
+                
+                <div class="stat-card ">
+                    <div class="value">1</div>
+                    <div class="label">读数倒退 (READING_DROP)</div>
+                </div>
+                
+                <div class="stat-card orange">
+                    <div class="value">1</div>
+                    <div class="label">闭店后耗电 (OFF_PEAK_USAGE)</div>
+                </div>
+                
+            </div>
+        </div>
+        
+
+        
+        <div class="card">
+            <h2>⚠️ 异常详情</h2>
+            
+            <div class="anomaly-item ">
+                <div class="anomaly-header">
+                    <span class="anomaly-code">
+                        <span class="anomaly-badge severity-error">读数倒退</span>
+                        <span class="anomaly-badge status-open">未解决</span>
+                        
+                        门店: S001
+                        
+                    </span>
+                    <span style="color: #888; font-size: 12px;">2026-06-07 21:47</span>
+                </div>
+                <div class="anomaly-desc">电表读数倒退: 从10250.0降到9800.0，下降450.00kWh</div>
+                
+                <div class="anomaly-details">
+                    <strong>详细信息:</strong><br>
+                    
+                    
+                    &nbsp;&nbsp;meter_id: M001<br>
+                    
+                    &nbsp;&nbsp;store_id: S001<br>
+                    
+                    &nbsp;&nbsp;previous_value: 10250.0<br>
+                    
+                    &nbsp;&nbsp;current_value: 9800.0<br>
+                    
+                    &nbsp;&nbsp;drop_amount: 450.0<br>
+                    
+                    &nbsp;&nbsp;previous_time: 2024-06-16 09:30:00<br>
+                    
+                    &nbsp;&nbsp;current_time: 2024-06-16 12:00:00<br>
+                    
+                </div>
+                
+            </div>
+            
+            <div class="anomaly-item warning">
+                <div class="anomaly-header">
+                    <span class="anomaly-code">
+                        <span class="anomaly-badge severity-warning">闭店后耗电</span>
+                        <span class="anomaly-badge status-open">未解决</span>
+                        
+                        门店: S001
+                        
+                    </span>
+                    <span style="color: #888; font-size: 12px;">2026-06-07 21:47</span>
+                </div>
+                <div class="anomaly-desc">闭店后耗电异常: 门店S001闭店时间22:00:00后仍有1000.00kWh用电（超过阈值5.0kWh）</div>
+                
+                <div class="anomaly-details">
+                    <strong>详细信息:</strong><br>
+                    
+                    
+                    &nbsp;&nbsp;meter_id: M001<br>
+                    
+                    &nbsp;&nbsp;store_id: S001<br>
+                    
+                    &nbsp;&nbsp;closing_time: 22:00:00<br>
+                    
+                    &nbsp;&nbsp;reading_time: 2024-06-16 23:30:00<br>
+                    
+                    &nbsp;&nbsp;usage: 1000.0<br>
+                    
+                    &nbsp;&nbsp;threshold: 5.0<br>
+                    
+                </div>
+                
+            </div>
+            
+        </div>
+        
+
+        
+
+        <div class="card">
+            <h2>🏪 门店统计</h2>
+            <div class="store-table">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>门店编号</th>
+                            <th>门店名称</th>
+                            <th>读数记录数</th>
+                            <th>异常数</th>
+                            <th>开门时间</th>
+                            <th>关门时间</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        
+                        <tr>
+                            <td><code>S001</code></td>
+                            <td>-</td>
+                            <td>7</td>
+                            <td>
+                                
+                                <span class="anomaly-badge severity-error">2</span>
+                                
+                            </td>
+                            <td>-</td>
+                            <td>-</td>
+                        </tr>
+                        
+                        <tr>
+                            <td><code>S002</code></td>
+                            <td>-</td>
+                            <td>7</td>
+                            <td>
+                                
+                                <span class="anomaly-badge severity-info">0</span>
+                                
+                            </td>
+                            <td>-</td>
+                            <td>-</td>
+                        </tr>
+                        
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>📋 读数明细</h2>
+            <div class="store-table">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>门店</th>
+                            <th>电表</th>
+                            <th>日期</th>
+                            <th>时间</th>
+                            <th>读数</th>
+                            <th>单位</th>
+                            <th>时区</th>
+                            <th>抄表员</th>
+                            <th>状态</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        
+                        <tr>
+                            <td><code>S001</code></td>
+                            <td><code>M00101</code></td>
+                            <td>2024-06-20</td>
+                            <td>18:00:00</td>
+                            <td style="font-weight: 600;">11250.0</td>
+                            <td>kWh</td>
+                            <td>Asia/Shanghai</td>
+                            <td>王五</td>
+                            <td>
+                                
+                                <span class="anomaly-badge severity-info">正常</span>
+                                
+                            </td>
+                        </tr>
+                        
+                        <tr>
+                            <td><code>S001</code></td>
+                            <td><code>M00101</code></td>
+                            <td>2024-06-21</td>
+                            <td>18:00:00</td>
+                            <td style="font-weight: 600;">11300.0</td>
+                            <td>kWh</td>
+                            <td>Asia/Shanghai</td>
+                            <td>王五</td>
+                            <td>
+                                
+                                <span class="anomaly-badge severity-info">正常</span>
+                                
+                            </td>
+                        </tr>
+                        
+                        <tr>
+                            <td><code>S001</code></td>
+                            <td><code>M00101</code></td>
+                            <td>2024-06-22</td>
+                            <td>18:00:00</td>
+                            <td style="font-weight: 600;">11350.0</td>
+                            <td>kWh</td>
+                            <td>Asia/Shanghai</td>
+                            <td>王五</td>
+                            <td>
+                                
+                                <span class="anomaly-badge severity-info">正常</span>
+                                
+                            </td>
+                        </tr>
+                        
+                        <tr>
+                            <td><code>S001</code></td>
+                            <td><code>M00101</code></td>
+                            <td>2024-06-23</td>
+                            <td>18:00:00</td>
+                            <td style="font-weight: 600;">11400.0</td>
+                            <td>kWh</td>
+                            <td>Asia/Shanghai</td>
+                            <td>王五</td>
+                            <td>
+                                
+                                <span class="anomaly-badge severity-info">正常</span>
+                                
+                            </td>
+                        </tr>
+                        
+                        <tr>
+                            <td><code>S001</code></td>
+                            <td><code>M001</code></td>
+                            <td>2024-06-16</td>
+                            <td>09:30:00</td>
+                            <td style="font-weight: 600;">10250.0</td>
+                            <td>kWh</td>
+                            <td>Asia/Shanghai</td>
+                            <td>张三</td>
+                            <td>
+                                
+                                <span class="anomaly-badge severity-info">正常</span>
+                                
+                            </td>
+                        </tr>
+                        
+                        <tr>
+                            <td><code>S001</code></td>
+                            <td><code>M001</code></td>
+                            <td>2024-06-16</td>
+                            <td>12:00:00</td>
+                            <td style="font-weight: 600;">9800.0</td>
+                            <td>kWh</td>
+                            <td>Asia/Shanghai</td>
+                            <td>张三</td>
+                            <td>
+                                
+                                <span class="anomaly-badge severity-info">正常</span>
+                                
+                            </td>
+                        </tr>
+                        
+                        <tr>
+                            <td><code>S001</code></td>
+                            <td><code>M001</code></td>
+                            <td>2024-06-16</td>
+                            <td>23:30:00</td>
+                            <td style="font-weight: 600;">10800.0</td>
+                            <td>kWh</td>
+                            <td>Asia/Shanghai</td>
+                            <td>张三</td>
+                            <td>
+                                
+                                <span class="anomaly-badge severity-info">正常</span>
+                                
+                            </td>
+                        </tr>
+                        
+                        <tr>
+                            <td><code>S002</code></td>
+                            <td><code>M00203</code></td>
+                            <td>2024-06-20</td>
+                            <td>18:00:00</td>
+                            <td style="font-weight: 600;">11250.0</td>
+                            <td>kWh</td>
+                            <td>Asia/Shanghai</td>
+                            <td>王五</td>
+                            <td>
+                                
+                                <span class="anomaly-badge severity-info">正常</span>
+                                
+                            </td>
+                        </tr>
+                        
+                        <tr>
+                            <td><code>S002</code></td>
+                            <td><code>M00203</code></td>
+                            <td>2024-06-21</td>
+                            <td>18:00:00</td>
+                            <td style="font-weight: 600;">11300.0</td>
+                            <td>kWh</td>
+                            <td>Asia/Shanghai</td>
+                            <td>王五</td>
+                            <td>
+                                
+                                <span class="anomaly-badge severity-info">正常</span>
+                                
+                            </td>
+                        </tr>
+                        
+                        <tr>
+                            <td><code>S002</code></td>
+                            <td><code>M00203</code></td>
+                            <td>2024-06-22</td>
+                            <td>18:00:00</td>
+                            <td style="font-weight: 600;">11350.0</td>
+                            <td>kWh</td>
+                            <td>Asia/Shanghai</td>
+                            <td>王五</td>
+                            <td>
+                                
+                                <span class="anomaly-badge severity-info">正常</span>
+                                
+                            </td>
+                        </tr>
+                        
+                        <tr>
+                            <td><code>S002</code></td>
+                            <td><code>M00203</code></td>
+                            <td>2024-06-23</td>
+                            <td>18:00:00</td>
+                            <td style="font-weight: 600;">11400.0</td>
+                            <td>kWh</td>
+                            <td>Asia/Shanghai</td>
+                            <td>王五</td>
+                            <td>
+                                
+                                <span class="anomaly-badge severity-info">正常</span>
+                                
+                            </td>
+                        </tr>
+                        
+                        <tr>
+                            <td><code>S002</code></td>
+                            <td><code>M003</code></td>
+                            <td>2024-06-17</td>
+                            <td>09:00:00</td>
+                            <td style="font-weight: 600;">8500.0</td>
+                            <td>kWh</td>
+                            <td>Asia/Shanghai</td>
+                            <td>李四</td>
+                            <td>
+                                
+                                <span class="anomaly-badge severity-info">正常</span>
+                                
+                            </td>
+                        </tr>
+                        
+                        <tr>
+                            <td><code>S002</code></td>
+                            <td><code>M003</code></td>
+                            <td>2024-06-17</td>
+                            <td>14:00:00</td>
+                            <td style="font-weight: 600;">8700.0</td>
+                            <td>kWh</td>
+                            <td>Asia/Shanghai</td>
+                            <td>李四</td>
+                            <td>
+                                
+                                <span class="anomaly-badge severity-info">正常</span>
+                                
+                            </td>
+                        </tr>
+                        
+                        <tr>
+                            <td><code>S002</code></td>
+                            <td><code>M003</code></td>
+                            <td>2024-06-17</td>
+                            <td>19:00:00</td>
+                            <td style="font-weight: 600;">8850.0</td>
+                            <td>kWh</td>
+                            <td>Asia/Shanghai</td>
+                            <td>李四</td>
+                            <td>
+                                
+                                <span class="anomaly-badge severity-info">正常</span>
+                                
+                            </td>
+                        </tr>
+                        
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>用电数据分析系统 v1.0 | 报告生成于 2026-06-07 21:47:37</p>
+        </div>
+    </div>
+</body>
+</html>

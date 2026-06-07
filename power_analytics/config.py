@@ -70,5 +70,20 @@ CORRECTION_STATUS = {
     "ROLLED_BACK": "rolled_back",
 }
 
-for directory in [DATA_DIR, EXPORT_DIR, TEMPLATES_DIR]:
+CONFLICT_STRATEGIES = {
+    "REJECT": "reject",
+    "ISOLATE": "isolate",
+    "OVERWRITE": "overwrite",
+}
+
+CONFLICT_TYPES = {
+    "DUPLICATE_BATCH_NAME": "duplicate_batch_name",
+    "DUPLICATE_READING": "duplicate_reading",
+    "MISSING_DEVICE": "missing_device",
+}
+
+SCHEMES_DIR = DATA_DIR / "schemes"
+AUDIT_LOGS_DIR = DATA_DIR / "audit_logs"
+
+for directory in [DATA_DIR, EXPORT_DIR, TEMPLATES_DIR, SCHEMES_DIR, AUDIT_LOGS_DIR]:
     directory.mkdir(parents=True, exist_ok=True)

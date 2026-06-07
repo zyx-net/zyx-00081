@@ -22,6 +22,8 @@ from .config import (
     ANOMALY_SEVERITY,
     ANOMALY_STATUS,
     CORRECTION_STATUS,
+    CONFLICT_STRATEGIES,
+    CONFLICT_TYPES,
     REQUIRED_FIELDS,
     OPTIONAL_FIELDS,
 )
@@ -248,6 +250,57 @@ class ExportSummary(Base):
     record_count = Column(Integer, default=0)
     anomaly_count = Column(Integer, default=0)
     exported_by = Column(String(100), nullable=True)
+    created_at = Column(DateTime, default=datetime.now, nullable=False)
+
+    batch = relationship("Batch")
+
+
+class ImportScheme(Base):
+    __tablename__ = "import_schemes"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(String(255), unique=True, nullable=False)
+    description = Column(Text, nullable=True)
+    field_mappings = Column(Text, nullable=False)
+    default_timezone = Column(String(50), default="Asia/Shanghai", nullable=False)
+    device_config_path = Column(String(500), nullable=True)
+    conflict_strategies = Column(Text, nullable=False)
+    created_by = Column(String(100), nullable=True)
+    is_active = Column(Boolean, default=True, nullable=False)
+    created_at = Column(DateTime, default=datetime.now, nullable=False)
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now, nullable=False)
+
+
+class ImportAuditLog(Base):
+    __tablename__ = "import_audit_logs"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    batch_id = Column(Integer, ForeignKey("batches.id"), nullable=True)
+    scheme_id = Column(Integer, ForeignKey("import_schemes.id"), nullable=True)
+    action = Column(String(50), nullable=False)
+    conflict_type = Column(String(50), nullable=True)
+    conflict_strategy = Column(String(50), nullable=True)
+    details = Column(Text, nullable=True)
+    row_number = Column(Integer, nullable=True)
+    handled_by = Column(String(100), nullable=True)
+    created_at = Column(DateTime, default=datetime.now, nullable=False)
+
+    batch = relationship("Batch")
+    scheme = relationship("ImportScheme")
+
+
+class IsolatedRecord(Base):
+    __tablename__ = "isolated_records"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    batch_id = Column(Integer, ForeignKey("batches.id"), nullable=False)
+    raw_data = Column(Text, nullable=False)
+    row_number = Column(Integer, nullable=False)
+    conflict_type = Column(String(50), nullable=False)
+    reason = Column(Text, nullable=False)
+    resolution = Column(String(50), default="pending", nullable=False)
+    resolved_by = Column(String(100), nullable=True)
+    resolved_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.now, nullable=False)
 
     batch = relationship("Batch")

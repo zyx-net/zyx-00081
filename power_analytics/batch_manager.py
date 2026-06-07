@@ -11,6 +11,8 @@ from .models import (
     Anomaly,
     Correction,
     RawRow,
+    IsolatedRecord,
+    ImportAuditLog,
 )
 
 
@@ -98,6 +100,12 @@ class BatchManager:
 
         self.db.query(MeterReading).filter(MeterReading.batch_id == batch_id).delete()
 
+        self.db.query(IsolatedRecord).filter(IsolatedRecord.batch_id == batch_id).update(
+            {IsolatedRecord.resolution: "rolled_back",
+             IsolatedRecord.resolved_by: rolled_back_by,
+             IsolatedRecord.resolved_at: datetime.now()}
+        )
+
         batch.status = BATCH_STATUS["ROLLED_BACK"]
         batch.rollback_reason = reason
         batch.rolled_back_by = rolled_back_by
@@ -140,6 +148,7 @@ class BatchManager:
 
         self.db.query(MeterReading).filter(MeterReading.batch_id == batch_id).delete()
         self.db.query(RawRow).filter(RawRow.batch_id == batch_id).delete()
+        self.db.query(IsolatedRecord).filter(IsolatedRecord.batch_id == batch_id).delete()
         self.db.delete(batch)
 
         self.db.commit()

@@ -323,14 +323,22 @@ python -m power_analytics.cli rollback 2 -r "需要重新处理"
 
 ## 预期异常数量汇总
 
-| 测试场景 | 预期异常数 | 异常类型 |
-|---------|-----------|---------|
-| normal_readings.csv (360行) | 15-20 | PEAK_USAGE, OFF_PEAK_USAGE |
-| with_anomalies.csv (8行) | 5+ | READING_DROP, DUPLICATE_REPORT, OFF_PEAK_USAGE, PEAK_USAGE, METER_MISSING |
-| error_missing_columns.csv | - | 导入失败 (MISSING_REQUIRED_FIELD) |
-| error_invalid_timezone.csv | - | 导入失败 (INVALID_TIMEZONE) |
-| error_invalid_device.csv | - | 行校验失败 (INVALID_DEVICE) |
-| 重复导入测试 | - | 导入失败 (DUPLICATE_REPORT) |
+| 测试场景 | 总行数 | 结果 | 异常类型/退出码 |
+|---------|-------|------|----------------|
+| normal_readings.csv | 360 | ✅ 导入成功 | 15-20个异常 (PEAK_USAGE, OFF_PEAK_USAGE) |
+| with_anomalies.csv | 14 | ✅ 导入成功 | 5+个异常 (READING_DROP, DUPLICATE_REPORT, OFF_PEAK_USAGE, PEAK_USAGE, METER_MISSING) |
+| error_missing_columns.csv | 1 | ❌ 导入失败 | 退出码 != 0 (MISSING_REQUIRED_FIELD) |
+| error_invalid_timezone.csv | 2 | ❌ 导入失败 | 退出码 != 0 (INVALID_TIMEZONE) |
+| **error_invalid_device.csv** | 1 | ❌ 导入失败 | 退出码 != 0 (**INVALID_DEVICE**) |
+| 重复导入测试 | - | ❌ 导入失败 | 退出码 != 0 (DUPLICATE_REPORT) |
+
+### 失败链路统一行为
+所有失败场景（缺列、无效时区、无效设备、重复记录）：
+- ✅ 回滚事务，**不生成批次记录**
+- ✅ **不污染数据库**（无Batch、RawRow、MeterReading记录）
+- ✅ 明确提示错误原因和具体行号
+- ✅ 退出码 != 0
+- ✅ 不生成导出汇总
 
 ## 常见问题
 
