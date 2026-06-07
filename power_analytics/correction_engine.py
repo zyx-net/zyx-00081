@@ -28,6 +28,10 @@ class RuleEngine:
     def __init__(self, db: Session = None):
         self.db = db or create_db_session()
 
+    def close(self):
+        if self.db:
+            self.db.close()
+
     def create_rule(
         self,
         code: str,

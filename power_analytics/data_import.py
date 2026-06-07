@@ -25,6 +25,10 @@ class DataImportService:
         self.db = db or create_db_session()
         self.validator = DataValidator()
 
+    def close(self):
+        if self.db:
+            self.db.close()
+
     def _load_file(self, file_path: str) -> pd.DataFrame:
         path = Path(file_path)
         if not path.exists():
@@ -164,7 +168,7 @@ class DataImportService:
             if not is_row_valid:
                 invalid_rows_count += 1
                 has_critical_error = any(
-                    e["code"] in ["MISSING_REQUIRED_FIELD", "INVALID_TIMEZONE"]
+                    e["code"] in ["MISSING_REQUIRED_FIELD", "INVALID_TIMEZONE", "INVALID_DEVICE", "DUPLICATE_REPORT"]
                     for e in errors
                 )
                 if has_critical_error:

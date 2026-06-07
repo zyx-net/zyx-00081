@@ -15,8 +15,20 @@ pip install -r requirements.txt
 ### 2. 初始化系统
 
 ```bash
+# Windows / Linux / macOS 通用
 python -m power_analytics.cli init
+
+# 重置数据库（删除所有数据）
+python -m power_analytics.cli init --reset-db
 ```
+
+### Windows 控制台编码说明
+
+**重要**：Windows CMD/PowerShell 默认使用 GBK 编码，本系统已自动兼容：
+- 所有输出会自动转换为 GBK 安全的文本
+- 表情符号（✅, ❌ 等）自动替换为纯文本（[OK], [ERROR] 等）
+- 如果希望显示完整 Unicode 表情，先执行：`chcp 65001`
+- 系统**不会**因为编码问题崩溃或产生乱码
 
 ### 3. 生成样例数据
 

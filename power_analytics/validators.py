@@ -126,12 +126,22 @@ class DataValidator:
 
         device_id = row_data.get("device_id")
         store_id = row_data.get("store_id")
-        if device_id and store_id and store_devices:
-            store_device_list = store_devices.get(store_id, [])
-            if device_id not in store_device_list:
+        if device_id and str(device_id).strip():
+            device_id = str(device_id).strip()
+            if store_devices:
+                store_device_list = store_devices.get(store_id, [])
+                if device_id not in store_device_list:
+                    errors.append({
+                        "code": "INVALID_DEVICE",
+                        "message": f"设备不存在: 门店{store_id}的设备{device_id}",
+                        "row": row_number,
+                        "store_id": store_id,
+                        "device_id": device_id,
+                    })
+            else:
                 errors.append({
                     "code": "INVALID_DEVICE",
-                    "message": f"设备不存在: 门店{store_id}的设备{device_id}",
+                    "message": f"设备不存在: 门店{store_id}的设备{device_id}（系统中未配置任何设备）",
                     "row": row_number,
                     "store_id": store_id,
                     "device_id": device_id,

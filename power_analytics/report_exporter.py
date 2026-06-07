@@ -25,6 +25,10 @@ class ReportExporter:
         self.env = Environment(loader=FileSystemLoader(str(TEMPLATES_DIR)))
         self.env.filters["from_json"] = lambda s: json.loads(s) if s else {}
 
+    def close(self):
+        if self.db:
+            self.db.close()
+
     def _generate_file_name(self, prefix: str, batch_name: str, ext: str) -> str:
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         safe_name = "".join(c if c.isalnum() or c in ("_", "-") else "_" for c in batch_name)

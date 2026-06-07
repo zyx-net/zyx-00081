@@ -28,6 +28,10 @@ class AnomalyDetector:
         self.db = db or create_db_session()
         self._load_anomaly_types()
 
+    def close(self):
+        if self.db:
+            self.db.close()
+
     def _load_anomaly_types(self):
         self.anomaly_types = {
             at.code: at for at in self.db.query(AnomalyType).filter(

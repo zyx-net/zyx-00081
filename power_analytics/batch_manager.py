@@ -18,6 +18,10 @@ class BatchManager:
     def __init__(self, db: Session = None):
         self.db = db or create_db_session()
 
+    def close(self):
+        if self.db:
+            self.db.close()
+
     def list_batches(self, status: str = None, limit: int = 100) -> List[Batch]:
         query = self.db.query(Batch).order_by(Batch.id.desc())
         if status:

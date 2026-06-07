@@ -12,6 +12,9 @@ from .batch_manager import BatchManager
 from .anomaly_detector import AnomalyDetector
 from .correction_engine import RuleEngine
 from .report_exporter import ReportExporter
+from .output_utils import init_output, safe_echo
+
+init_output()
 
 
 @click.group()
@@ -27,9 +30,9 @@ def init(reset_db):
     """初始化系统"""
     try:
         init_db(reset=reset_db)
-        click.echo(f"✅ 系统初始化成功{'（数据库已重置）' if reset_db else ''}")
+        safe_echo(f"✅ 系统初始化成功{'（数据库已重置）' if reset_db else ''}")
     except Exception as e:
-        click.echo(f"❌ 初始化失败: {e}", err=True)
+        safe_echo(f"❌ 初始化失败: {e}", err=True)
         sys.exit(1)
 
 
@@ -48,24 +51,24 @@ def import_file(file_path, batch_name, description, imported_by):
             description=description,
             imported_by=imported_by,
         )
-        click.echo(f"✅ 导入成功！批次ID: {batch.id}")
-        click.echo(f"   批次名称: {batch.name}")
-        click.echo(f"   总行数: {batch.total_rows}")
-        click.echo(f"   有效行数: {batch.valid_rows}")
-        click.echo(f"   无效行数: {batch.invalid_rows}")
-        click.echo(f"   状态: {batch.status}")
+        safe_echo(f"✅ 导入成功！批次ID: {batch.id}")
+        safe_echo(f"   批次名称: {batch.name}")
+        safe_echo(f"   总行数: {batch.total_rows}")
+        safe_echo(f"   有效行数: {batch.valid_rows}")
+        safe_echo(f"   无效行数: {batch.invalid_rows}")
+        safe_echo(f"   状态: {batch.status}")
     except ValidationError as e:
-        click.echo(f"❌ 导入失败: {e}", err=True)
+        safe_echo(f"❌ 导入失败: {e}", err=True)
         if e.details:
             import datetime
             def json_default(obj):
                 if isinstance(obj, (datetime.date, datetime.datetime, datetime.time)):
                     return str(obj)
                 return str(obj)
-            click.echo(f"   错误详情: {json.dumps(e.details, ensure_ascii=False, indent=2, default=json_default)}", err=True)
+            safe_echo(f"   错误详情: {json.dumps(e.details, ensure_ascii=False, indent=2, default=json_default)}", err=True)
         sys.exit(1)
     except Exception as e:
-        click.echo(f"❌ 导入失败: {e}", err=True)
+        safe_echo(f"❌ 导入失败: {e}", err=True)
         sys.exit(1)
 
 
@@ -79,11 +82,11 @@ def list_batches(status, limit):
         batches = manager.list_batches(status=status, limit=limit)
 
         if not batches:
-            click.echo("暂无批次数据")
+            safe_echo("暂无批次数据")
             return
 
-        click.echo(f"{'ID':<5} {'名称':<20} {'文件':<25} {'行数':<8} {'状态':<12} {'创建时间':<20}")
-        click.echo("-" * 90)
+        safe_echo(f"{'ID':<5} {'名称':<20} {'文件':<25} {'行数':<8} {'状态':<12} {'创建时间':<20}")
+        safe_echo("-" * 90)
         for b in batches:
             status_display = {
                 BATCH_STATUS["IMPORTED"]: "已导入",
@@ -93,9 +96,9 @@ def list_batches(status, limit):
                 BATCH_STATUS["ROLLED_BACK"]: "已回滚",
             }.get(b.status, b.status)
 
-            click.echo(f"{b.id:<5} {b.name[:18]:<20} {b.file_name[:23]:<25} {b.valid_rows:<8} {status_display:<12} {b.created_at.strftime('%Y-%m-%d %H:%M'):<20}")
+            safe_echo(f"{b.id:<5} {b.name[:18]:<20} {b.file_name[:23]:<25} {b.valid_rows:<8} {status_display:<12} {b.created_at.strftime('%Y-%m-%d %H:%M'):<20}")
     except Exception as e:
-        click.echo(f"❌ 查询失败: {e}", err=True)
+        safe_echo(f"❌ 查询失败: {e}", err=True)
         sys.exit(1)
 
 
@@ -108,49 +111,49 @@ def show_batch(batch_id):
         details = manager.get_batch_details(batch_id)
 
         if not details:
-            click.echo(f"❌ 批次不存在: {batch_id}", err=True)
+            safe_echo(f"❌ 批次不存在: {batch_id}", err=True)
             sys.exit(1)
 
         batch = details["batch"]
-        click.echo(f"\n📋 批次详情 #{batch.id}")
-        click.echo("=" * 50)
-        click.echo(f"名称: {batch.name}")
+        safe_echo(f"\n📋 批次详情 #{batch.id}")
+        safe_echo("=" * 50)
+        safe_echo(f"名称: {batch.name}")
         if batch.description:
-            click.echo(f"描述: {batch.description}")
-        click.echo(f"文件: {batch.file_name}")
-        click.echo(f"有效读数: {details['readings_count']} 条")
-        click.echo(f"异常数量: {details['anomalies_count']} 个")
-        click.echo(f"修正记录: {details['corrections_count']} 条")
-        click.echo(f"状态: {batch.status}")
-        click.echo(f"创建时间: {batch.created_at}")
+            safe_echo(f"描述: {batch.description}")
+        safe_echo(f"文件: {batch.file_name}")
+        safe_echo(f"有效读数: {details['readings_count']} 条")
+        safe_echo(f"异常数量: {details['anomalies_count']} 个")
+        safe_echo(f"修正记录: {details['corrections_count']} 条")
+        safe_echo(f"状态: {batch.status}")
+        safe_echo(f"创建时间: {batch.created_at}")
 
         if details["anomaly_summary"]:
-            click.echo("\n📊 异常汇总:")
+            safe_echo("\n📊 异常汇总:")
             for code, info in details["anomaly_summary"].items():
-                click.echo(f"  {code}: {info['count']} 个 ({info['severity']})")
+                safe_echo(f"  {code}: {info['count']} 个 ({info['severity']})")
 
         if details["anomalies"]:
-            click.echo("\n⚠️  异常详情:")
+            safe_echo("\n⚠️  异常详情:")
             for a in details["anomalies"]:
                 severity_icon = {"error": "🔴", "warning": "🟡", "info": "🔵"}.get(a.severity, "⚪")
-                click.echo(f"  {severity_icon} #{a.id} [{a.anomaly_code}] {a.description[:80]}...")
+                safe_echo(f"  {severity_icon} #{a.id} [{a.anomaly_code}] {a.description[:80]}...")
                 if a.details:
                     try:
                         d = json.loads(a.details)
                         if "drop_amount" in d:
-                            click.echo(f"     下降: {d['drop_amount']:.2f} kWh")
+                            safe_echo(f"     下降: {d['drop_amount']:.2f} kWh")
                     except:
                         pass
 
         if details["corrections"]:
-            click.echo("\n✏️  修正记录:")
+            safe_echo("\n✏️  修正记录:")
             for c in details["corrections"]:
-                click.echo(f"  #{c.id}: {c.old_value} → {c.new_value}")
+                safe_echo(f"  #{c.id}: {c.old_value} → {c.new_value}")
                 if c.note:
-                    click.echo(f"     备注: {c.note}")
+                    safe_echo(f"     备注: {c.note}")
 
     except Exception as e:
-        click.echo(f"❌ 查询失败: {e}", err=True)
+        safe_echo(f"❌ 查询失败: {e}", err=True)
         sys.exit(1)
 
 
@@ -162,7 +165,7 @@ def analyze_batch(batch_id):
         detector = AnomalyDetector()
         count, anomalies = detector.analyze_batch(batch_id)
 
-        click.echo(f"✅ 分析完成！发现 {count} 个异常")
+        safe_echo(f"✅ 分析完成！发现 {count} 个异常")
 
         if anomalies:
             by_type = {}
@@ -172,14 +175,14 @@ def analyze_batch(batch_id):
                     by_type[code] = 0
                 by_type[code] += 1
 
-            click.echo("\n按类型统计:")
+            safe_echo("\n按类型统计:")
             for code, cnt in by_type.items():
-                click.echo(f"  {code}: {cnt} 个")
+                safe_echo(f"  {code}: {cnt} 个")
     except ValueError as e:
-        click.echo(f"❌ {e}", err=True)
+        safe_echo(f"❌ {e}", err=True)
         sys.exit(1)
     except Exception as e:
-        click.echo(f"❌ 分析失败: {e}", err=True)
+        safe_echo(f"❌ 分析失败: {e}", err=True)
         sys.exit(1)
 
 
@@ -192,14 +195,14 @@ def commit_batch(batch_id, committed_by):
         manager = BatchManager()
         batch = manager.commit_batch(batch_id, committed_by=committed_by)
         if not batch:
-            click.echo(f"❌ 批次不存在: {batch_id}", err=True)
+            safe_echo(f"❌ 批次不存在: {batch_id}", err=True)
             sys.exit(1)
-        click.echo(f"✅ 批次 #{batch_id} 已提交")
+        safe_echo(f"✅ 批次 #{batch_id} 已提交")
     except ValueError as e:
-        click.echo(f"❌ {e}", err=True)
+        safe_echo(f"❌ {e}", err=True)
         sys.exit(1)
     except Exception as e:
-        click.echo(f"❌ 提交失败: {e}", err=True)
+        safe_echo(f"❌ 提交失败: {e}", err=True)
         sys.exit(1)
 
 
@@ -213,13 +216,13 @@ def rollback_batch(batch_id, reason, rolled_back_by):
         manager = BatchManager()
         batch = manager.rollback_batch(batch_id, reason=reason, rolled_back_by=rolled_back_by)
         if not batch:
-            click.echo(f"❌ 批次不存在: {batch_id}", err=True)
+            safe_echo(f"❌ 批次不存在: {batch_id}", err=True)
             sys.exit(1)
-        click.echo(f"✅ 批次 #{batch_id} 已回滚")
+        safe_echo(f"✅ 批次 #{batch_id} 已回滚")
         if reason:
-            click.echo(f"   原因: {reason}")
+            safe_echo(f"   原因: {reason}")
     except Exception as e:
-        click.echo(f"❌ 回滚失败: {e}", err=True)
+        safe_echo(f"❌ 回滚失败: {e}", err=True)
         sys.exit(1)
 
 
@@ -250,13 +253,13 @@ def create_rule(code, name, version, condition, action, description, created_by)
             description=description,
             created_by=created_by,
         )
-        click.echo(f"✅ 规则创建成功！ID: {rule.id}")
-        click.echo(f"   {code} v{version} - {name}")
+        safe_echo(f"✅ 规则创建成功！ID: {rule.id}")
+        safe_echo(f"   {code} v{version} - {name}")
     except ValueError as e:
-        click.echo(f"❌ {e}", err=True)
+        safe_echo(f"❌ {e}", err=True)
         sys.exit(1)
     except Exception as e:
-        click.echo(f"❌ 创建失败: {e}", err=True)
+        safe_echo(f"❌ 创建失败: {e}", err=True)
         sys.exit(1)
 
 
@@ -268,16 +271,16 @@ def list_rules():
         rules = engine.list_rules(active_only=False)
 
         if not rules:
-            click.echo("暂无规则")
+            safe_echo("暂无规则")
             return
 
-        click.echo(f"{'ID':<5} {'代码':<20} {'版本':<10} {'名称':<20} {'状态':<8}")
-        click.echo("-" * 65)
+        safe_echo(f"{'ID':<5} {'代码':<20} {'版本':<10} {'名称':<20} {'状态':<8}")
+        safe_echo("-" * 65)
         for r in rules:
             status = "激活" if r.is_active else "停用"
-            click.echo(f"{r.id:<5} {r.code:<20} {r.version:<10} {r.name[:18]:<20} {status:<8}")
+            safe_echo(f"{r.id:<5} {r.code:<20} {r.version:<10} {r.name[:18]:<20} {status:<8}")
     except Exception as e:
-        click.echo(f"❌ 查询失败: {e}", err=True)
+        safe_echo(f"❌ 查询失败: {e}", err=True)
         sys.exit(1)
 
 
@@ -289,16 +292,16 @@ def apply_rule(rule_id, batch_id):
     try:
         engine = RuleEngine()
         count, corrections = engine.apply_rule(rule_id, batch_id=batch_id)
-        click.echo(f"✅ 规则应用完成！共修正 {count} 条记录")
+        safe_echo(f"✅ 规则应用完成！共修正 {count} 条记录")
         for c in corrections[:5]:
-            click.echo(f"   #{c.reading_id}: {c.old_value} → {c.new_value}")
+            safe_echo(f"   #{c.reading_id}: {c.old_value} → {c.new_value}")
         if len(corrections) > 5:
-            click.echo(f"   ... 还有 {len(corrections) - 5} 条")
+            safe_echo(f"   ... 还有 {len(corrections) - 5} 条")
     except ValueError as e:
-        click.echo(f"❌ {e}", err=True)
+        safe_echo(f"❌ {e}", err=True)
         sys.exit(1)
     except Exception as e:
-        click.echo(f"❌ 应用失败: {e}", err=True)
+        safe_echo(f"❌ 应用失败: {e}", err=True)
         sys.exit(1)
 
 
@@ -317,16 +320,16 @@ def correct_reading(reading_id, new_value, note, applied_by):
             note=note,
             applied_by=applied_by,
         )
-        click.echo(f"✅ 修正成功！")
-        click.echo(f"   读数ID: {reading_id}")
-        click.echo(f"   {correction.old_value} → {correction.new_value}")
+        safe_echo(f"✅ 修正成功！")
+        safe_echo(f"   读数ID: {reading_id}")
+        safe_echo(f"   {correction.old_value} → {correction.new_value}")
         if note:
-            click.echo(f"   备注: {note}")
+            safe_echo(f"   备注: {note}")
     except ValueError as e:
-        click.echo(f"❌ {e}", err=True)
+        safe_echo(f"❌ {e}", err=True)
         sys.exit(1)
     except Exception as e:
-        click.echo(f"❌ 修正失败: {e}", err=True)
+        safe_echo(f"❌ 修正失败: {e}", err=True)
         sys.exit(1)
 
 
@@ -338,14 +341,14 @@ def rollback_correction(correction_id, rolled_back_by):
     try:
         engine = RuleEngine()
         correction = engine.rollback_correction(correction_id, rolled_back_by=rolled_back_by)
-        click.echo(f"✅ 修正已回滚！")
-        click.echo(f"   修正ID: {correction_id}")
-        click.echo(f"   恢复值: {correction.old_value}")
+        safe_echo(f"✅ 修正已回滚！")
+        safe_echo(f"   修正ID: {correction_id}")
+        safe_echo(f"   恢复值: {correction.old_value}")
     except ValueError as e:
-        click.echo(f"❌ {e}", err=True)
+        safe_echo(f"❌ {e}", err=True)
         sys.exit(1)
     except Exception as e:
-        click.echo(f"❌ 回滚失败: {e}", err=True)
+        safe_echo(f"❌ 回滚失败: {e}", err=True)
         sys.exit(1)
 
 
@@ -363,13 +366,13 @@ def export_html(batch_id, exported_by):
     try:
         exporter = ReportExporter()
         file_path = exporter.export_html(batch_id, exported_by=exported_by)
-        click.echo(f"✅ HTML报告导出成功！")
-        click.echo(f"   文件: {file_path}")
+        safe_echo(f"✅ HTML报告导出成功！")
+        safe_echo(f"   文件: {file_path}")
     except ValueError as e:
-        click.echo(f"❌ {e}", err=True)
+        safe_echo(f"❌ {e}", err=True)
         sys.exit(1)
     except Exception as e:
-        click.echo(f"❌ 导出失败: {e}", err=True)
+        safe_echo(f"❌ 导出失败: {e}", err=True)
         sys.exit(1)
 
 
@@ -381,13 +384,13 @@ def export_csv(batch_id, exported_by):
     try:
         exporter = ReportExporter()
         file_path = exporter.export_csv(batch_id, exported_by=exported_by)
-        click.echo(f"✅ CSV报告导出成功！")
-        click.echo(f"   文件: {file_path}")
+        safe_echo(f"✅ CSV报告导出成功！")
+        safe_echo(f"   文件: {file_path}")
     except ValueError as e:
-        click.echo(f"❌ {e}", err=True)
+        safe_echo(f"❌ {e}", err=True)
         sys.exit(1)
     except Exception as e:
-        click.echo(f"❌ 导出失败: {e}", err=True)
+        safe_echo(f"❌ 导出失败: {e}", err=True)
         sys.exit(1)
 
 
@@ -406,10 +409,10 @@ def export_anomalies(batch_id, anomaly_type, unresolved, exported_by):
             unresolved=unresolved,
             exported_by=exported_by,
         )
-        click.echo(f"✅ 异常报告导出成功！")
-        click.echo(f"   文件: {file_path}")
+        safe_echo(f"✅ 异常报告导出成功！")
+        safe_echo(f"   文件: {file_path}")
     except Exception as e:
-        click.echo(f"❌ 导出失败: {e}", err=True)
+        safe_echo(f"❌ 导出失败: {e}", err=True)
         sys.exit(1)
 
 
@@ -422,15 +425,15 @@ def export_history(limit):
         exports = exporter.get_export_history(limit=limit)
 
         if not exports:
-            click.echo("暂无导出记录")
+            safe_echo("暂无导出记录")
             return
 
-        click.echo(f"{'ID':<5} {'类型':<15} {'文件名':<30} {'记录数':<8} {'异常数':<8} {'时间':<20}")
-        click.echo("-" * 90)
+        safe_echo(f"{'ID':<5} {'类型':<15} {'文件名':<30} {'记录数':<8} {'异常数':<8} {'时间':<20}")
+        safe_echo("-" * 90)
         for e in exports:
-            click.echo(f"{e.id:<5} {e.export_type:<15} {e.file_name[:28]:<30} {e.record_count:<8} {e.anomaly_count:<8} {e.created_at.strftime('%Y-%m-%d %H:%M'):<20}")
+            safe_echo(f"{e.id:<5} {e.export_type:<15} {e.file_name[:28]:<30} {e.record_count:<8} {e.anomaly_count:<8} {e.created_at.strftime('%Y-%m-%d %H:%M'):<20}")
     except Exception as e:
-        click.echo(f"❌ 查询失败: {e}", err=True)
+        safe_echo(f"❌ 查询失败: {e}", err=True)
         sys.exit(1)
 
 
@@ -441,11 +444,11 @@ def generate_samples():
         from .sample_data_generator import SampleDataGenerator
         generator = SampleDataGenerator()
         files = generator.generate_all()
-        click.echo("✅ 样例数据生成完成！")
+        safe_echo("✅ 样例数据生成完成！")
         for f in files:
-            click.echo(f"   {f}")
+            safe_echo(f"   {f}")
     except Exception as e:
-        click.echo(f"❌ 生成失败: {e}", err=True)
+        safe_echo(f"❌ 生成失败: {e}", err=True)
         sys.exit(1)
 
 
