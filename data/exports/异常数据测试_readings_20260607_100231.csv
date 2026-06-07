@@ -1,0 +1,12 @@
+﻿id,store_id,meter_id,reading_datetime,reading_value,reading_unit,consumption_kwh,timezone,operator,is_corrected
+1201,S001,M001,2024-06-16 09:30:00,10250.0,kWh,-620.0,Asia/Shanghai,张三,False
+1202,S001,M001,2024-06-16 23:30:00,10800.0,kWh,-112.0,Asia/Shanghai,张三,False
+1203,S002,M003,2024-06-17 09:00:00,8500.0,kWh,-427.0,Asia/Shanghai,李四,False
+1204,S002,M003,2024-06-17 09:00:00,8500.0,kWh,-427.0,Asia/Shanghai,李四,False
+1205,S002,M003,2024-06-17 19:00:00,8850.0,kWh,-104.0,Asia/Shanghai,李四,False
+1206,S001,M00101,2024-06-20 18:00:00,11250.0,kWh,,Asia/Shanghai,王五,False
+1207,S002,M00203,2024-06-20 18:00:00,11250.0,kWh,,Asia/Shanghai,王五,False
+1208,S001,M00101,2024-06-21 18:00:00,11300.0,kWh,50.0,Asia/Shanghai,王五,False
+1209,S002,M00203,2024-06-21 18:00:00,11300.0,kWh,50.0,Asia/Shanghai,王五,False
+1210,S001,M00101,2024-06-22 18:00:00,11350.0,kWh,50.0,Asia/Shanghai,王五,False
+1211,S002,M00203,2024-06-22 18:00:00,11350.0,kWh,50.0,Asia/Shanghai,王五,False

@@ -1,0 +1,6 @@
+﻿device_id,store_id,device_name,power_kw
+DEV001,S001,中央空调1,15.0
+DEV002,S001,照明系统,8.0
+DEV003,S002,中央空调1,18.0
+DEV004,S002,冷藏柜,5.0
+DEV005,S003,中央空调1,12.0

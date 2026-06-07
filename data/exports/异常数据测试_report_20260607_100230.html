@@ -1,0 +1,703 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>用电数据分析报告 - 异常数据测试</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            background: #f5f7fa;
+            color: #333;
+            line-height: 1.6;
+        }
+        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+        }
+        .header h1 { font-size: 28px; margin-bottom: 10px; }
+        .header .meta { opacity: 0.9; font-size: 14px; }
+        .card {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+        .card h2 {
+            font-size: 20px;
+            margin-bottom: 15px;
+            color: #333;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .stat-box {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .stat-box .value {
+            font-size: 32px;
+            font-weight: bold;
+            color: #667eea;
+        }
+        .stat-box .label {
+            font-size: 14px;
+            color: #666;
+            margin-top: 5px;
+        }
+        .stat-box.warning .value { color: #f59e0b; }
+        .stat-box.error .value { color: #ef4444; }
+        .stat-box.success .value { color: #10b981; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        th {
+            background: #f8f9fa;
+            font-weight: 600;
+            color: #374151;
+        }
+        tr:hover { background: #f9fafb; }
+        .severity {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        .severity.warning { background: #fef3c7; color: #92400e; }
+        .severity.error { background: #fee2e2; color: #991b1b; }
+        .severity.info { background: #dbeafe; color: #1e40af; }
+        .badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        .badge-success { background: #d1fae5; color: #065f46; }
+        .badge-warning { background: #fef3c7; color: #92400e; }
+        .badge-error { background: #fee2e2; color: #991b1b; }
+        .badge-info { background: #dbeafe; color: #1e40af; }
+        .anomaly-item {
+            padding: 15px;
+            background: #fffbeb;
+            border-left: 4px solid #f59e0b;
+            margin-bottom: 10px;
+            border-radius: 4px;
+        }
+        .anomaly-item.error {
+            background: #fef2f2;
+            border-left-color: #ef4444;
+        }
+        .anomaly-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+        .anomaly-type { font-weight: 600; }
+        .anomaly-time { font-size: 12px; color: #666; }
+        .anomaly-desc { font-size: 14px; color: #444; }
+        .empty {
+            text-align: center;
+            padding: 40px;
+            color: #9ca3af;
+        }
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 10px;
+        }
+        .info-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px dashed #e5e7eb;
+        }
+        .info-item .label { color: #6b7280; }
+        .info-item .value { font-weight: 500; }
+        .footer {
+            text-align: center;
+            color: #9ca3af;
+            font-size: 12px;
+            margin-top: 30px;
+            padding: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>⚡ 用电数据分析报告</h1>
+            <div class="meta">
+                批次名称: 异常数据测试 | 导出时间: 2026-06-07 10:02:29
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>📋 批次概览</h2>
+            <div class="info-grid">
+                <div class="info-item">
+                    <span class="label">批次ID</span>
+                    <span class="value">6</span>
+                </div>
+                <div class="info-item">
+                    <span class="label">原始文件</span>
+                    <span class="value">with_anomalies.csv</span>
+                </div>
+                <div class="info-item">
+                    <span class="label">批次状态</span>
+                    <span class="value">
+                        
+                            <span class="badge badge-info">已分析</span>
+                        
+                    </span>
+                </div>
+                <div class="info-item">
+                    <span class="label">规则版本</span>
+                    <span class="value">1.0</span>
+                </div>
+                <div class="info-item">
+                    <span class="label">创建时间</span>
+                    <span class="value">2026-06-07 10:01:39</span>
+                </div>
+                <div class="info-item">
+                    <span class="label">提交时间</span>
+                    <span class="value">-</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>📊 数据统计</h2>
+            <div class="stats-grid">
+                <div class="stat-box">
+                    <div class="value">12</div>
+                    <div class="label">总行数</div>
+                </div>
+                <div class="stat-box success">
+                    <div class="value">11</div>
+                    <div class="label">有效行数</div>
+                </div>
+                <div class="stat-box warning">
+                    <div class="value">1</div>
+                    <div class="label">无效行数</div>
+                </div>
+                <div class="stat-box error">
+                    <div class="value">15</div>
+                    <div class="label">异常数量</div>
+                </div>
+            </div>
+
+            
+            <h3 style="margin-top: 20px; font-size: 16px;">异常类型分布</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>异常类型</th>
+                        <th>严重程度</th>
+                        <th>数量</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    
+                    <tr>
+                        <td>缺表</td>
+                        <td><span class="severity error">error</span></td>
+                        <td><strong>8</strong></td>
+                    </tr>
+                    
+                    <tr>
+                        <td>读数倒退</td>
+                        <td><span class="severity error">error</span></td>
+                        <td><strong>5</strong></td>
+                    </tr>
+                    
+                    <tr>
+                        <td>重复上报</td>
+                        <td><span class="severity error">error</span></td>
+                        <td><strong>2</strong></td>
+                    </tr>
+                    
+                </tbody>
+            </table>
+            
+        </div>
+
+        
+        <div class="card">
+            <h2>⚠️ 异常详情</h2>
+            
+            <div class="anomaly-item error">
+                <div class="anomaly-header">
+                    <span class="anomaly-type">
+                        <span class="severity error">读数倒退</span>
+                        #415
+                    </span>
+                    <span class="anomaly-time">2026-06-07 10:01:40</span>
+                </div>
+                <div class="anomaly-desc">读数倒退: 上次读数10870.00kWh, 本次读数10250.00kWh, 下降620.00kWh</div>
+                <div style="margin-top: 8px; font-size: 12px; color: #666;">
+                    读数ID: 1201 |
+                    状态: <span class="badge badge-warning">未解决</span>
+                    
+                </div>
+            </div>
+            
+            <div class="anomaly-item error">
+                <div class="anomaly-header">
+                    <span class="anomaly-type">
+                        <span class="severity error">读数倒退</span>
+                        #416
+                    </span>
+                    <span class="anomaly-time">2026-06-07 10:01:40</span>
+                </div>
+                <div class="anomaly-desc">读数倒退: 上次读数10912.00kWh, 本次读数10800.00kWh, 下降112.00kWh</div>
+                <div style="margin-top: 8px; font-size: 12px; color: #666;">
+                    读数ID: 1202 |
+                    状态: <span class="badge badge-warning">未解决</span>
+                    
+                </div>
+            </div>
+            
+            <div class="anomaly-item error">
+                <div class="anomaly-header">
+                    <span class="anomaly-type">
+                        <span class="severity error">读数倒退</span>
+                        #417
+                    </span>
+                    <span class="anomaly-time">2026-06-07 10:01:40</span>
+                </div>
+                <div class="anomaly-desc">读数倒退: 上次读数8927.00kWh, 本次读数8500.00kWh, 下降427.00kWh</div>
+                <div style="margin-top: 8px; font-size: 12px; color: #666;">
+                    读数ID: 1203 |
+                    状态: <span class="badge badge-warning">未解决</span>
+                    
+                </div>
+            </div>
+            
+            <div class="anomaly-item error">
+                <div class="anomaly-header">
+                    <span class="anomaly-type">
+                        <span class="severity error">重复上报</span>
+                        #418
+                    </span>
+                    <span class="anomaly-time">2026-06-07 10:01:40</span>
+                </div>
+                <div class="anomaly-desc">重复上报: 门店S002电表M003 在2024-06-17 09:00:00已有记录(批次6)</div>
+                <div style="margin-top: 8px; font-size: 12px; color: #666;">
+                    读数ID: 1203 |
+                    状态: <span class="badge badge-warning">未解决</span>
+                    
+                </div>
+            </div>
+            
+            <div class="anomaly-item error">
+                <div class="anomaly-header">
+                    <span class="anomaly-type">
+                        <span class="severity error">读数倒退</span>
+                        #419
+                    </span>
+                    <span class="anomaly-time">2026-06-07 10:01:40</span>
+                </div>
+                <div class="anomaly-desc">读数倒退: 上次读数8927.00kWh, 本次读数8500.00kWh, 下降427.00kWh</div>
+                <div style="margin-top: 8px; font-size: 12px; color: #666;">
+                    读数ID: 1204 |
+                    状态: <span class="badge badge-warning">未解决</span>
+                    
+                </div>
+            </div>
+            
+            <div class="anomaly-item error">
+                <div class="anomaly-header">
+                    <span class="anomaly-type">
+                        <span class="severity error">重复上报</span>
+                        #420
+                    </span>
+                    <span class="anomaly-time">2026-06-07 10:01:40</span>
+                </div>
+                <div class="anomaly-desc">重复上报: 门店S002电表M003 在2024-06-17 09:00:00已有记录(批次6)</div>
+                <div style="margin-top: 8px; font-size: 12px; color: #666;">
+                    读数ID: 1204 |
+                    状态: <span class="badge badge-warning">未解决</span>
+                    
+                </div>
+            </div>
+            
+            <div class="anomaly-item error">
+                <div class="anomaly-header">
+                    <span class="anomaly-type">
+                        <span class="severity error">读数倒退</span>
+                        #421
+                    </span>
+                    <span class="anomaly-time">2026-06-07 10:01:40</span>
+                </div>
+                <div class="anomaly-desc">读数倒退: 上次读数8954.00kWh, 本次读数8850.00kWh, 下降104.00kWh</div>
+                <div style="margin-top: 8px; font-size: 12px; color: #666;">
+                    读数ID: 1205 |
+                    状态: <span class="badge badge-warning">未解决</span>
+                    
+                </div>
+            </div>
+            
+            <div class="anomaly-item error">
+                <div class="anomaly-header">
+                    <span class="anomaly-type">
+                        <span class="severity error">缺表</span>
+                        #422
+                    </span>
+                    <span class="anomaly-time">2026-06-07 10:01:40</span>
+                </div>
+                <div class="anomaly-desc">缺表: 门店中关村店(S001)的电表M002 在本批次中无记录，上次记录时间2024-06-30 22:00:00</div>
+                <div style="margin-top: 8px; font-size: 12px; color: #666;">
+                    读数ID: 1201 |
+                    状态: <span class="badge badge-warning">未解决</span>
+                    
+                </div>
+            </div>
+            
+            <div class="anomaly-item error">
+                <div class="anomaly-header">
+                    <span class="anomaly-type">
+                        <span class="severity error">缺表</span>
+                        #423
+                    </span>
+                    <span class="anomaly-time">2026-06-07 10:01:40</span>
+                </div>
+                <div class="anomaly-desc">缺表: 门店国贸店(S002)的电表M004 在本批次中无记录，上次记录时间2024-06-30 22:00:00</div>
+                <div style="margin-top: 8px; font-size: 12px; color: #666;">
+                    读数ID: 1201 |
+                    状态: <span class="badge badge-warning">未解决</span>
+                    
+                </div>
+            </div>
+            
+            <div class="anomaly-item error">
+                <div class="anomaly-header">
+                    <span class="anomaly-type">
+                        <span class="severity error">缺表</span>
+                        #424
+                    </span>
+                    <span class="anomaly-time">2026-06-07 10:01:40</span>
+                </div>
+                <div class="anomaly-desc">缺表: 门店望京店(S003)的电表M005 在本批次中无记录，上次记录时间2024-06-30 22:00:00</div>
+                <div style="margin-top: 8px; font-size: 12px; color: #666;">
+                    读数ID: 1201 |
+                    状态: <span class="badge badge-warning">未解决</span>
+                    
+                </div>
+            </div>
+            
+            <div class="anomaly-item error">
+                <div class="anomaly-header">
+                    <span class="anomaly-type">
+                        <span class="severity error">缺表</span>
+                        #425
+                    </span>
+                    <span class="anomaly-time">2026-06-07 10:01:40</span>
+                </div>
+                <div class="anomaly-desc">缺表: 门店望京店(S003)的电表M006 在本批次中无记录，上次记录时间2024-06-30 22:00:00</div>
+                <div style="margin-top: 8px; font-size: 12px; color: #666;">
+                    读数ID: 1201 |
+                    状态: <span class="badge badge-warning">未解决</span>
+                    
+                </div>
+            </div>
+            
+            <div class="anomaly-item error">
+                <div class="anomaly-header">
+                    <span class="anomaly-type">
+                        <span class="severity error">缺表</span>
+                        #426
+                    </span>
+                    <span class="anomaly-time">2026-06-07 10:01:40</span>
+                </div>
+                <div class="anomaly-desc">缺表: 门店朝阳大悦城店(S004)的电表M007 在本批次中无记录，上次记录时间2024-06-30 22:00:00</div>
+                <div style="margin-top: 8px; font-size: 12px; color: #666;">
+                    读数ID: 1201 |
+                    状态: <span class="badge badge-warning">未解决</span>
+                    
+                </div>
+            </div>
+            
+            <div class="anomaly-item error">
+                <div class="anomaly-header">
+                    <span class="anomaly-type">
+                        <span class="severity error">缺表</span>
+                        #427
+                    </span>
+                    <span class="anomaly-time">2026-06-07 10:01:40</span>
+                </div>
+                <div class="anomaly-desc">缺表: 门店朝阳大悦城店(S004)的电表M008 在本批次中无记录，上次记录时间2024-06-30 22:00:00</div>
+                <div style="margin-top: 8px; font-size: 12px; color: #666;">
+                    读数ID: 1201 |
+                    状态: <span class="badge badge-warning">未解决</span>
+                    
+                </div>
+            </div>
+            
+            <div class="anomaly-item error">
+                <div class="anomaly-header">
+                    <span class="anomaly-type">
+                        <span class="severity error">缺表</span>
+                        #428
+                    </span>
+                    <span class="anomaly-time">2026-06-07 10:01:40</span>
+                </div>
+                <div class="anomaly-desc">缺表: 门店五道口店(S005)的电表M009 在本批次中无记录，上次记录时间2024-06-30 22:00:00</div>
+                <div style="margin-top: 8px; font-size: 12px; color: #666;">
+                    读数ID: 1201 |
+                    状态: <span class="badge badge-warning">未解决</span>
+                    
+                </div>
+            </div>
+            
+            <div class="anomaly-item error">
+                <div class="anomaly-header">
+                    <span class="anomaly-type">
+                        <span class="severity error">缺表</span>
+                        #429
+                    </span>
+                    <span class="anomaly-time">2026-06-07 10:01:40</span>
+                </div>
+                <div class="anomaly-desc">缺表: 门店五道口店(S005)的电表M010 在本批次中无记录，上次记录时间2024-06-30 22:00:00</div>
+                <div style="margin-top: 8px; font-size: 12px; color: #666;">
+                    读数ID: 1201 |
+                    状态: <span class="badge badge-warning">未解决</span>
+                    
+                </div>
+            </div>
+            
+        </div>
+        
+
+        
+
+        <div class="card">
+            <h2>📈 读数明细</h2>
+            
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>门店</th>
+                        <th>电表</th>
+                        <th>抄表时间</th>
+                        <th>读数</th>
+                        <th>单位</th>
+                        <th>用电量</th>
+                        <th>时区</th>
+                        <th>状态</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    
+                    <tr>
+                        <td>1201</td>
+                        <td>S001</td>
+                        <td>M001</td>
+                        <td>2024-06-16 09:30:00</td>
+                        <td>10250.0</td>
+                        <td>kWh</td>
+                        <td>-620.0</td>
+                        <td>Asia/Shanghai</td>
+                        <td>
+                            
+                                <span class="badge badge-success">原始</span>
+                            
+                        </td>
+                    </tr>
+                    
+                    <tr>
+                        <td>1202</td>
+                        <td>S001</td>
+                        <td>M001</td>
+                        <td>2024-06-16 23:30:00</td>
+                        <td>10800.0</td>
+                        <td>kWh</td>
+                        <td>-112.0</td>
+                        <td>Asia/Shanghai</td>
+                        <td>
+                            
+                                <span class="badge badge-success">原始</span>
+                            
+                        </td>
+                    </tr>
+                    
+                    <tr>
+                        <td>1203</td>
+                        <td>S002</td>
+                        <td>M003</td>
+                        <td>2024-06-17 09:00:00</td>
+                        <td>8500.0</td>
+                        <td>kWh</td>
+                        <td>-427.0</td>
+                        <td>Asia/Shanghai</td>
+                        <td>
+                            
+                                <span class="badge badge-success">原始</span>
+                            
+                        </td>
+                    </tr>
+                    
+                    <tr>
+                        <td>1204</td>
+                        <td>S002</td>
+                        <td>M003</td>
+                        <td>2024-06-17 09:00:00</td>
+                        <td>8500.0</td>
+                        <td>kWh</td>
+                        <td>-427.0</td>
+                        <td>Asia/Shanghai</td>
+                        <td>
+                            
+                                <span class="badge badge-success">原始</span>
+                            
+                        </td>
+                    </tr>
+                    
+                    <tr>
+                        <td>1205</td>
+                        <td>S002</td>
+                        <td>M003</td>
+                        <td>2024-06-17 19:00:00</td>
+                        <td>8850.0</td>
+                        <td>kWh</td>
+                        <td>-104.0</td>
+                        <td>Asia/Shanghai</td>
+                        <td>
+                            
+                                <span class="badge badge-success">原始</span>
+                            
+                        </td>
+                    </tr>
+                    
+                    <tr>
+                        <td>1206</td>
+                        <td>S001</td>
+                        <td>M00101</td>
+                        <td>2024-06-20 18:00:00</td>
+                        <td>11250.0</td>
+                        <td>kWh</td>
+                        <td>-</td>
+                        <td>Asia/Shanghai</td>
+                        <td>
+                            
+                                <span class="badge badge-success">原始</span>
+                            
+                        </td>
+                    </tr>
+                    
+                    <tr>
+                        <td>1207</td>
+                        <td>S002</td>
+                        <td>M00203</td>
+                        <td>2024-06-20 18:00:00</td>
+                        <td>11250.0</td>
+                        <td>kWh</td>
+                        <td>-</td>
+                        <td>Asia/Shanghai</td>
+                        <td>
+                            
+                                <span class="badge badge-success">原始</span>
+                            
+                        </td>
+                    </tr>
+                    
+                    <tr>
+                        <td>1208</td>
+                        <td>S001</td>
+                        <td>M00101</td>
+                        <td>2024-06-21 18:00:00</td>
+                        <td>11300.0</td>
+                        <td>kWh</td>
+                        <td>50.0</td>
+                        <td>Asia/Shanghai</td>
+                        <td>
+                            
+                                <span class="badge badge-success">原始</span>
+                            
+                        </td>
+                    </tr>
+                    
+                    <tr>
+                        <td>1209</td>
+                        <td>S002</td>
+                        <td>M00203</td>
+                        <td>2024-06-21 18:00:00</td>
+                        <td>11300.0</td>
+                        <td>kWh</td>
+                        <td>50.0</td>
+                        <td>Asia/Shanghai</td>
+                        <td>
+                            
+                                <span class="badge badge-success">原始</span>
+                            
+                        </td>
+                    </tr>
+                    
+                    <tr>
+                        <td>1210</td>
+                        <td>S001</td>
+                        <td>M00101</td>
+                        <td>2024-06-22 18:00:00</td>
+                        <td>11350.0</td>
+                        <td>kWh</td>
+                        <td>50.0</td>
+                        <td>Asia/Shanghai</td>
+                        <td>
+                            
+                                <span class="badge badge-success">原始</span>
+                            
+                        </td>
+                    </tr>
+                    
+                    <tr>
+                        <td>1211</td>
+                        <td>S002</td>
+                        <td>M00203</td>
+                        <td>2024-06-22 18:00:00</td>
+                        <td>11350.0</td>
+                        <td>kWh</td>
+                        <td>50.0</td>
+                        <td>Asia/Shanghai</td>
+                        <td>
+                            
+                                <span class="badge badge-success">原始</span>
+                            
+                        </td>
+                    </tr>
+                    
+                </tbody>
+            </table>
+            
+        </div>
+
+        
+
+        <div class="footer">
+            <p>用电数据分析系统 | 报告生成于 2026-06-07 10:02:29</p>
+        </div>
+    </div>
+</body>
+</html>

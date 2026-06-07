@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>用电数据分析报告 - {{ batch.name }}</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif; background: #f5f7fa; color: #333; line-height: 1.6; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; border-radius: 10px; margin-bottom: 20px; }
+        .header h1 { font-size: 28px; margin-bottom: 10px; }
+        .header .meta { opacity: 0.9; font-size: 14px; }
+        .card { background: white; border-radius: 10px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+        .card h2 { color: #333; font-size: 20px; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 2px solid #eee; }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px; }
+        .stat-card { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; padding: 20px; border-radius: 8px; }
+        .stat-card.blue { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
+        .stat-card.green { background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); }
+        .stat-card.orange { background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); }
+        .stat-card .value { font-size: 36px; font-weight: bold; }
+        .stat-card .label { font-size: 14px; opacity: 0.95; }
+        .anomaly-badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 500; }
+        .severity-error { background: #fee; color: #c33; }
+        .severity-warning { background: #fff3cd; color: #856404; }
+        .severity-info { background: #d1ecf1; color: #0c5460; }
+        .status-open { background: #f8d7da; color: #721c24; }
+        .status-resolved { background: #d4edda; color: #155724; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px 0; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #eee; }
+        th { background: #f8f9fa; font-weight: 600; color: #555; }
+        tr:hover { background: #f8f9fa; }
+        .anomaly-item { padding: 15px; border-left: 4px solid #e74c3c; margin-bottom: 10px; background: #fff5f5; border-radius: 0 8px 8px 0; }
+        .anomaly-item.warning { border-left-color: #f39c12; background: #fffbf0; }
+        .anomaly-item .anomaly-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+        .anomaly-item .anomaly-code { font-weight: 600; color: #333; }
+        .anomaly-item .anomaly-desc { color: #666; font-size: 14px; }
+        .anomaly-item .anomaly-details { margin-top: 8px; padding: 10px; background: rgba(0,0,0,0.02); border-radius: 6px; font-size: 13px; color: #555; }
+        .correction-item { padding: 12px; background: #e8f5e9; border-radius: 8px; margin-bottom: 10px; }
+        .correction-item .value-change { font-family: monospace; font-size: 14px; }
+        .footer { text-align: center; color: #888; font-size: 12px; margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; }
+        .store-table { overflow-x: auto; }
+        code { background: #f4f4f4; padding: 2px 6px; border-radius: 4px; font-size: 13px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>⚡ 用电数据分析报告</h1>
+            <div class="meta">
+                <strong>批次:</strong> {{ batch.name }}
+                {% if batch.description %} - {{ batch.description }}{% endif %}<br>
+                <strong>文件:</strong> {{ batch.file_name }} |
+                <strong>导入时间:</strong> {{ batch.created_at.strftime('%Y-%m-%d %H:%M:%S') }} |
+                <strong>导出时间:</strong> {{ export_time.strftime('%Y-%m-%d %H:%M:%S') }}
+            </div>
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat-card blue">
+                <div class="value">{{ readings|length }}</div>
+                <div class="label">有效读数记录</div>
+            </div>
+            <div class="stat-card">
+                <div class="value">{{ anomalies|length }}</div>
+                <div class="label">异常总数</div>
+            </div>
+            <div class="stat-card orange">
+                <div class="value">{{ corrections|length }}</div>
+                <div class="label">修正记录</div>
+            </div>
+            <div class="stat-card green">
+                <div class="value">{{ store_stats|length }}</div>
+                <div class="label">涉及门店</div>
+            </div>
+        </div>
+
+        {% if anomaly_summary %}
+        <div class="card">
+            <h2>📊 异常类型汇总</h2>
+            <div class="stats-grid">
+                {% for code, info in anomaly_summary.items() %}
+                <div class="stat-card {% if info.severity == 'error' %}{% else %}orange{% endif %}">
+                    <div class="value">{{ info.count }}</div>
+                    <div class="label">{{ info.name }} ({{ code }})</div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        {% if anomalies %}
+        <div class="card">
+            <h2>⚠️ 异常详情</h2>
+            {% for anomaly in anomalies %}
+            <div class="anomaly-item {% if anomaly.severity == 'warning' %}warning{% endif %}">
+                <div class="anomaly-header">
+                    <span class="anomaly-code">
+                        <span class="anomaly-badge severity-{{ anomaly.severity }}">{{ anomaly.anomaly_type.name if anomaly.anomaly_type else anomaly.anomaly_code }}</span>
+                        <span class="anomaly-badge status-{{ anomaly.status }}">{{ '已解决' if anomaly.status == 'resolved' else '未解决' }}</span>
+                        {% if anomaly.reading and anomaly.reading.store %}
+                        门店: {{ anomaly.reading.store.store_id }}
+                        {% endif %}
+                    </span>
+                    <span style="color: #888; font-size: 12px;">{{ anomaly.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
+                </div>
+                <div class="anomaly-desc">{{ anomaly.description }}</div>
+                {% if anomaly.details %}
+                <div class="anomaly-details">
+                    <strong>详细信息:</strong><br>
+                    {% set details = anomaly.details | from_json %}
+                    {% for key, value in details.items() %}
+                    &nbsp;&nbsp;{{ key }}: {{ value }}<br>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {% if corrections %}
+        <div class="card">
+            <h2>✏️ 修正记录</h2>
+            {% for correction in corrections %}
+            <div class="correction-item">
+                <div style="margin-bottom: 8px;">
+                    <strong>#{{ correction.id }}</strong>
+                    {% if correction.rule %}
+                    <span class="anomaly-badge severity-info">规则: {{ correction.rule.name }} ({{ correction.rule.code }} v{{ correction.rule.version }})</span>
+                    {% else %}
+                    <span class="anomaly-badge severity-info">人工修正</span>
+                    {% endif %}
+                    <span style="color: #888; font-size: 12px; float: right;">{{ correction.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
+                </div>
+                <div class="value-change">
+                    {{ correction.old_value }} → {{ correction.new_value }}
+                    {% if correction.note %}
+                    <span style="color: #666; margin-left: 15px;">备注: {{ correction.note }}</span>
+                    {% endif %}
+                </div>
+                {% if correction.applied_by %}
+                <div style="color: #888; font-size: 12px; margin-top: 5px;">操作人: {{ correction.applied_by }}</div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <div class="card">
+            <h2>🏪 门店统计</h2>
+            <div class="store-table">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>门店编号</th>
+                            <th>门店名称</th>
+                            <th>读数记录数</th>
+                            <th>异常数</th>
+                            <th>开门时间</th>
+                            <th>关门时间</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for store_id, stats in store_stats.items() %}
+                        <tr>
+                            <td><code>{{ store_id }}</code></td>
+                            <td>{{ stats.store_name if stats.store_name else '-' }}</td>
+                            <td>{{ stats.readings }}</td>
+                            <td>
+                                {% if stats.anomalies > 0 %}
+                                <span class="anomaly-badge severity-error">{{ stats.anomalies }}</span>
+                                {% else %}
+                                <span class="anomaly-badge severity-info">0</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ stats.opening_time if stats.opening_time else '-' }}</td>
+                            <td>{{ stats.closing_time if stats.closing_time else '-' }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>📋 读数明细</h2>
+            <div class="store-table">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>门店</th>
+                            <th>电表</th>
+                            <th>日期</th>
+                            <th>时间</th>
+                            <th>读数</th>
+                            <th>单位</th>
+                            <th>时区</th>
+                            <th>抄表员</th>
+                            <th>状态</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for r in readings %}
+                        <tr>
+                            <td><code>{{ r.store.store_id if r.store else '-' }}</code></td>
+                            <td><code>{{ r.meter.meter_id if r.meter else '-' }}</code></td>
+                            <td>{{ r.reading_date }}</td>
+                            <td>{{ r.reading_time }}</td>
+                            <td style="font-weight: 600;">{{ r.reading_value }}</td>
+                            <td>{{ r.reading_unit }}</td>
+                            <td>{{ r.timezone }}</td>
+                            <td>{{ r.operator or '-' }}</td>
+                            <td>
+                                {% if r.is_corrected %}
+                                <span class="anomaly-badge severity-info">已修正</span>
+                                {% else %}
+                                <span class="anomaly-badge severity-info">正常</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>用电数据分析系统 v1.0 | 报告生成于 {{ export_time.strftime('%Y-%m-%d %H:%M:%S') }}</p>
+        </div>
+    </div>
+</body>
+</html>

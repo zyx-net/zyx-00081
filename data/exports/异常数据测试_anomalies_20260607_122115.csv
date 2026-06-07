@@ -1,0 +1,7 @@
+﻿异常ID,批次ID,批次名称,异常类型,异常代码,严重程度,描述,状态,门店编号,电表编号,读数,发现时间,解决时间
+96,2,异常数据测试,缺表,METER_MISSING,error,"缺表异常: 门店S003的电表M006在本批次中无记录（涉及日期: [datetime.date(2024, 6, 16), datetime.date(2024, 6, 17), datetime.date(2024, 6, 20), datetime.date(2024, 6, 21), datetime.date(2024, 6, 22), datetime.date(2024, 6, 23)]）",open,,,,2026-06-07 12:20:31.067508,
+95,2,异常数据测试,缺表,METER_MISSING,error,"缺表异常: 门店S003的电表M005在本批次中无记录（涉及日期: [datetime.date(2024, 6, 16), datetime.date(2024, 6, 17), datetime.date(2024, 6, 20), datetime.date(2024, 6, 21), datetime.date(2024, 6, 22), datetime.date(2024, 6, 23)]）",open,,,,2026-06-07 12:20:31.067507,
+94,2,异常数据测试,缺表,METER_MISSING,error,"缺表异常: 门店S002的电表M004在本批次中无记录（涉及日期: [datetime.date(2024, 6, 16), datetime.date(2024, 6, 17), datetime.date(2024, 6, 20), datetime.date(2024, 6, 21), datetime.date(2024, 6, 22), datetime.date(2024, 6, 23)]）",open,,,,2026-06-07 12:20:31.067506,
+93,2,异常数据测试,缺表,METER_MISSING,error,"缺表异常: 门店S001的电表M002在本批次中无记录（涉及日期: [datetime.date(2024, 6, 16), datetime.date(2024, 6, 17), datetime.date(2024, 6, 20), datetime.date(2024, 6, 21), datetime.date(2024, 6, 22), datetime.date(2024, 6, 23)]）",open,,,,2026-06-07 12:20:31.067505,
+92,2,异常数据测试,闭店后耗电,OFF_PEAK_USAGE,warning,闭店后耗电异常: 门店S001闭店时间22:00:00后仍有550.00kWh用电（超过阈值5.0kWh）,open,S001,M001,10800.0,2026-06-07 12:20:31.067502,
+91,2,异常数据测试,读数倒退,READING_DROP,error,电表读数倒退: 从10250.0降到9800.0，下降450.00kWh,resolved,S001,M001,10250.0,2026-06-07 12:19:00.113858,2026-06-07 12:19:56.668014
